@@ -1,0 +1,71 @@
+# One pod does everything: serves the app, rebuilds the station data into
+# /data at startup and every hour, proxies the streams browsers would block,
+# and reads what each playing station is on.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: signal-radio
+  labels:
+    app.kubernetes.io/name: signal-radio
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: signal-radio
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: signal-radio
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: signal-radio
+          image: ghcr.io/alanheinen/radio-guide:latest
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            # ISO country codes to build, e.g. us,ca,gb.
+            - name: COUNTRIES
+              value: us
+          # Idle use is ~50Mi; the hourly rebuild (a child process) peaks near
+          # 80Mi for the US and ~140Mi for us,ca,gb.
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              memory: 512Mi
+          # 503 until the first build lands (5-20 seconds), so the pod
+          # takes no traffic before it has stations to show.
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        # Rebuilt at every start, so nothing here needs to persist.
+        - name: data
+          emptyDir:
+            sizeLimit: 64Mi

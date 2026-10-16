@@ -1,0 +1,26 @@
+# Optional: add to resources in kustomization.yaml after setting the host,
+# and the ingress class and TLS your cluster uses. The page needs HTTPS for
+# casting (speakers fetch plain-HTTP streams through it) and for streams that are
+# HTTPS-only. Serve it on your LAN only.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: signal-radio
+  # annotations:
+  #   cert-manager.io/cluster-issuer: letsencrypt
+spec:
+  # ingressClassName: nginx
+  # tls:
+  #   - hosts: [radio.example.lan]
+  #     secretName: signal-radio-tls
+  rules:
+    - host: radio.example.lan
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: signal-radio
+                port:
+                  name: http

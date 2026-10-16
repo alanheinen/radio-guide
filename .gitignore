@@ -1,0 +1,5 @@
+# Built by scripts/build.py (locally or in CI)
+web/data/
+__pycache__/
+*.pyc
+data/

@@ -1,0 +1,47 @@
+# Signal Radio as a systemd service. install.sh fills in @PYTHON@ and
+# @PREFIX@ and installs this as /etc/systemd/system/signal-radio.service.
+# Settings (COUNTRIES, HOST, PORT) go in /etc/signal-radio.env.
+[Unit]
+Description=Signal Radio (radio guide, player and stream proxy)
+Documentation=https://github.com/alanheinen/radio-guide
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+Environment=HOST=127.0.0.1 PORT=8080 COUNTRIES=us
+EnvironmentFile=-/etc/signal-radio.env
+ExecStart=@PYTHON@ @PREFIX@/scripts/serve.py --host ${HOST} --port ${PORT} --data /var/lib/signal-radio --refresh 1
+Restart=on-failure
+RestartSec=10
+
+# A throwaway user owns /var/lib/signal-radio; the station data in it is rebuilt
+# at every start, so nothing there needs backing up.
+DynamicUser=yes
+StateDirectory=signal-radio
+MemoryMax=512M
+
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=yes
+RestrictRealtime=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+CapabilityBoundingSet=
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

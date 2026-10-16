@@ -1,0 +1,30 @@
+# Signal Radio with Docker Compose:
+#
+#   docker compose up -d          then open http://localhost:8080
+#
+# Pulls the published image, or builds it from this checkout if it can't
+# (docker compose up -d --build always builds). Stations are ready well
+# under a minute after the first start; `docker compose ps` shows it healthy then.
+services:
+  signal-radio:
+    image: ghcr.io/alanheinen/radio-guide:latest
+    build: .
+    restart: unless-stopped
+    environment:
+      # Countries to build, as ISO codes, e.g. us,ca,gb.
+      COUNTRIES: us
+    ports:
+      # This machine only. Use "8080:8080" to listen from other devices on your
+      # network, but never expose it to the internet: the stream proxy would
+      # become an open relay.
+      - "127.0.0.1:8080:8080"
+    volumes:
+      # Keeps the schedule feed cache across restarts, so a restart rebuilds faster.
+      - data:/data
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 512m
+
+volumes:
+  data:

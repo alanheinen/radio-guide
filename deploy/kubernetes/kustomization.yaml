@@ -1,0 +1,21 @@
+# Signal Radio on Kubernetes:
+#
+#   kubectl apply -k deploy/kubernetes
+#   kubectl -n signal-radio port-forward svc/signal-radio 8080:80   # http://localhost:8080
+#
+# To reach it from your network, add ingress.yaml to resources below (after
+# setting its host), or change the Service type. Keep it off the internet:
+# the stream proxy would become an open relay.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: signal-radio
+resources:
+  - namespace.yaml
+  - deployment.yaml
+  - service.yaml
+  # - ingress.yaml
+images:
+  # Pin a build instead of following latest, e.g.
+  #   newTag: sha-<commit>   or   digest: sha256:<digest>
+  - name: ghcr.io/alanheinen/radio-guide
+    newTag: latest
