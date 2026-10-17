@@ -47,6 +47,7 @@ station's own public link, played from your own machine.
 - Media keys and lock-screen controls (next/previous station), volume memory
 - Casting to Chromecast and Nest speakers from Chrome or Edge
 - Light and dark themes, keyboard control, and a layout that works on phones
+- A TV layout driven by the remote, with a full-screen now-playing view
 - Standard-library Python only: no packages to install, ~50 MiB idle
 
 ## Quick start
@@ -182,6 +183,28 @@ Everywhere else, stations play with now-playing titles but no schedules.
 | `/` | Search |
 | `F` | Toggle favorite |
 | `N` | Jump to now |
+
+### On a TV
+
+Open the page with `?tv=1` (for example `http://radio.example.lan/?tv=1`) and it
+switches to a layout for a TV and its remote; `?tv=0` switches back. The
+choice is remembered, and TV browsers (Android TV, Google TV, Fire TV, Tizen,
+webOS) get it without asking.
+
+- **The guide:** `↑` `↓` change station, `←` `→` move through the schedule a
+  programme at a time, and OK tunes. OK on the station already playing fills
+  the screen with it.
+- **Full screen:** `↑` `↓` or the remote's channel buttons change station,
+  OK plays or stops, and Back returns to the guide.
+- **Everything else:** move up off the top of the guide to reach the
+  favorite star, the genres and the filters; Back returns to the guide.
+- **Remote keys:** play/pause, channel up/down, next/previous and the number
+  keys (type a station number) work everywhere. Back from the guide goes to
+  the station playing; from there, it leaves.
+
+An app that wraps the page in a web view can call `window.signalBack()` from
+its Back button: it returns `false` when the page has nothing to go back
+from, which is the app's cue to exit.
 
 ## How it works
 

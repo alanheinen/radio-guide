@@ -360,6 +360,114 @@ kbd {
   .select select { max-width: none; width: 100%; }
   .toggle, .jump { padding: 0 11px; }
 }
+/* ---------------------------------------------------------------- TV
+   html.tv: a TV and its remote (?tv=1, or a TV browser). 1rem is 1/60 of the
+   screen width (16px at the 960px a 1080p Google TV reports), so the layout
+   scales with the screen. The filters share the header row and scroll
+   sideways; the guide gets the rest. Rules here outrank the narrow-screen
+   ones above, which a TV can also match. html.tv.full fills the screen with
+   the station playing. */
+html.tv { font-size: calc(100vw / 60); --chan-w: 15rem; --row-h: 3.25rem; --ruler-h: 1.9rem; --radius: .7rem; }
+html.tv body { font-size: 1rem; }
+html.tv .app {
+  max-width: none; height: 100%; padding: 1rem 2rem; gap: .6rem;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto 28vh auto minmax(0, 1fr);
+  grid-template-areas: "top controls" "stage stage" "cats cats" "guide guide";
+}
+html.tv .top { grid-area: top; gap: .8rem; }
+html.tv .controls, html.tv .cats { padding: .25rem; margin: -.25rem; scrollbar-width: none; }
+html.tv .controls { grid-area: controls; flex-wrap: nowrap; overflow-x: auto; gap: .5rem; }
+html.tv .controls::-webkit-scrollbar { display: none; }
+html.tv .cats { grid-area: cats; gap: .4rem; }
+html.tv .stage { grid-area: stage; height: auto; min-height: 0; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: .6rem; }
+html.tv .guide-wrap { grid-area: guide; height: auto; min-height: 0; }
+/* Nothing to copy to, no mouse to hover, and the TV has its own volume. */
+html.tv .foot, html.tv .top-meta, html.tv .hint, html.tv .volume, html.tv .row-copy,
+html.tv [data-copy], html.tv .streams a, html.tv .overlay-actions a, html.tv #castBtn { display: none !important; }
+
+html.tv .brand-mark { width: 1.75rem; height: 1.75rem; }
+html.tv .brand-name { font-size: 1.4rem; }
+html.tv .clock { font-size: .9rem; padding: .4rem .6rem; border-radius: .4rem; }
+html.tv .icon-btn { width: 2.25rem; height: 2.25rem; border-radius: .5rem; }
+html.tv .icon-btn svg { width: 1.1rem; height: 1.1rem; }
+html.tv .search { flex: 0 0 12rem; height: 2.25rem; padding: 0 .6rem; gap: .5rem; border-radius: .55rem; }
+html.tv .search svg { width: 1rem; height: 1rem; }
+html.tv .search input { font-size: .9rem; }
+html.tv .select { flex: none; min-width: 0; }
+html.tv .select select { height: 2.25rem; padding: 0 .7rem; font-size: .9rem; border-radius: .55rem; width: auto; max-width: 11rem; }
+html.tv .toggles { flex-wrap: nowrap; gap: .5rem; }
+html.tv .toggle, html.tv .jump { height: 2.25rem; padding: 0 .9rem; font-size: .9rem; border-radius: .55rem; }
+html.tv .chip { padding: .3rem .8rem; font-size: .85rem; }
+html.tv .chip b { font-size: .7rem; }
+
+html.tv .deck { padding: 1rem; gap: 1.2rem; grid-template-columns: auto minmax(0, 1fr); justify-items: stretch; }
+html.tv .art { height: 100%; min-height: 0; max-height: none; border-radius: .7rem; }
+html.tv .art-fallback svg { width: 3.5rem; height: 3.5rem; }
+html.tv .deck-body { gap: .4rem; }
+html.tv .tally { font-size: .75rem; gap: .5rem; }
+html.tv .tally-dot { width: .55rem; height: .55rem; }
+html.tv .track { font-size: 1.5rem; }
+html.tv .artist { font-size: 1rem; -webkit-line-clamp: 1; }
+html.tv .deck-station { font-size: .8rem; }
+html.tv .deck-controls { gap: .8rem; margin-top: .2rem; }
+html.tv .play { width: 2.75rem; height: 2.75rem; }
+html.tv:not(.full) .play { display: none; } /* OK plays; the guide view has no room */
+html.tv:not(.full) .track { -webkit-line-clamp: 1; }
+html.tv .play svg { width: 1.3rem; height: 1.3rem; }
+html.tv .deck-note { font-size: .8rem; }
+html.tv .overlay-actions button { font-size: .85rem; padding: .4rem .8rem; border-radius: .45rem; }
+
+html.tv .now { padding: .9rem; gap: .7rem; }
+html.tv .now-chan { gap: .7rem; }
+html.tv .now-num { font-size: .75rem; }
+html.tv .now-name { font-size: 1.2rem; }
+html.tv .now-src { font-size: .8rem; }
+html.tv .eyebrow { font-size: .7rem; }
+html.tv .prog-title { font-size: 1.05rem; margin: .4rem 0 .2rem; }
+html.tv .prog-time { font-size: .8rem; }
+html.tv .prog-desc { font-size: .85rem; margin-top: .5rem; }
+html.tv .progress { height: .25rem; margin-top: .5rem; }
+html.tv .next-item { grid-template-columns: 4.5rem 1fr; gap: .6rem; padding: .35rem 0; font-size: .85rem; }
+html.tv .next-item time { font-size: .75rem; }
+html.tv .stream-btn { font-size: .75rem; padding: .35rem .6rem; border-radius: .4rem; }
+
+html.tv .corner { padding: 0 .9rem; font-size: .7rem; letter-spacing: .12em; }
+html.tv .tick { padding-left: .5rem; font-size: .8rem; }
+html.tv .chan-tune { grid-template-columns: 2.2rem 2.75rem minmax(0, 1fr); justify-items: stretch; gap: .5rem; padding: 0 .6rem 0 .4rem; }
+html.tv .chan-num { font-size: .8rem; text-align: right; }
+html.tv .chan-text { display: grid; gap: .15rem; }
+html.tv .chan-name { font-size: .95rem; }
+html.tv .chan-sub { font-size: .75rem; }
+html.tv .logo { width: 2.75rem; height: 2rem; border-radius: .35rem; font-size: .75rem; }
+html.tv .logo.lg { width: 4rem; height: 2.9rem; border-radius: .5rem; font-size: .95rem; }
+html.tv .prog { top: .25rem; bottom: .25rem; padding: .4rem .6rem; border-radius: .45rem; }
+html.tv .prog .t { font-size: .95rem; }
+html.tv .prog .m { font-size: .75rem; }
+html.tv .nowline span { width: .6rem; height: .6rem; margin-left: -.25rem; margin-top: calc(var(--ruler-h) - .3rem); }
+html.tv .empty strong { font-size: 1.2rem; }
+html.tv .toast { font-size: 1rem; padding: .7rem 1.1rem; border-radius: .6rem; bottom: 2rem; }
+
+/* The remote's focus: a heavy ring on controls, a filled block in the guide. */
+html.tv :focus { outline: .2rem solid var(--accent); outline-offset: .12rem; }
+html.tv .guide:focus { outline: none; }
+html.tv .guide:focus .prog.sel { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); opacity: 1; }
+html.tv .guide:focus .prog.sel .m { color: inherit; opacity: .75; }
+html.tv .guide:focus .row.sel.whole .chan { box-shadow: inset 0 0 0 .2rem var(--accent); }
+html.tv .guide:focus .row.sel.whole .prog.none { border: .15rem solid var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+
+.tv-keys { display: none; }
+html.tv.full .app { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); grid-template-areas: "stage"; padding: 2.5rem 3rem; }
+html.tv.full .app > :not(.stage) { display: none; }
+html.tv.full .stage { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 1rem; }
+html.tv.full .deck { padding: 2rem; gap: 2rem; }
+html.tv.full .art { height: min(50vh, 16rem); }
+html.tv.full .track { font-size: 2.2rem; -webkit-line-clamp: 3; }
+html.tv.full .artist { font-size: 1.3rem; -webkit-line-clamp: 2; }
+html.tv.full .deck-station { font-size: .95rem; }
+html.tv.full .now { padding: 1.4rem; }
+html.tv.full .tv-keys { display: block; margin-top: .6rem; font: 500 .8rem/1.4 var(--f-mono); color: #8797ab; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }

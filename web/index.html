@@ -11,6 +11,20 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
 <link rel="stylesheet" href="app.css">
+<script>
+  // TV mode, for a TV and its remote: ?tv=1 turns it on and ?tv=0 off, and
+  // the choice is remembered. TV browsers get it unless they've said no.
+  (() => {
+    const q = new URLSearchParams(location.search).get("tv");
+    let saved = null;
+    try {
+      if (q != null) localStorage.setItem("signal-radio.tv", q === "0" ? "false" : "true");
+      saved = localStorage.getItem("signal-radio.tv");
+    } catch { saved = q == null ? null : String(q !== "0"); }
+    const tvBrowser = /Android TV|GoogleTV|Google TV|Smart ?TV|BRAVIA|AFT[A-Z]|Tizen|Web0S|CrKey/i.test(navigator.userAgent);
+    if (saved === "true" || (saved == null && tvBrowser)) document.documentElement.classList.add("tv");
+  })();
+</script>
 </head>
 <body>
 <div class="app" id="app">
@@ -49,6 +63,7 @@
           <div class="deck-note" id="deckNote"></div>
         </div>
         <div class="overlay-actions" id="deckActions"></div>
+        <div class="tv-keys" aria-hidden="true">▲ ▼ change station · OK play or stop · Back to the guide</div>
       </div>
     </div>
 

@@ -16,6 +16,7 @@
     toast: $("#toast"), themeBtn: $("#themeBtn"), castBtn: $("#castBtn"),
   };
   const artFallback = els.art.innerHTML;
+  const tvMode = document.documentElement.classList.contains("tv");
 
   // ------------------------------------------------------------ storage
   const store = {
@@ -59,11 +60,17 @@
   };
   S.f.q = "";
 
+  // TV mode sizes the guide in rem (see app.css), so convert to pixels.
   function readLayout() {
     const cs = getComputedStyle(document.documentElement);
-    S.CH_W = parseFloat(cs.getPropertyValue("--chan-w")) || 232;
-    S.ROW_H = parseFloat(cs.getPropertyValue("--row-h")) || 64;
-    S.PX = window.innerWidth < 560 ? 4 : 5;
+    const rem = parseFloat(cs.fontSize) || 16;
+    const px = (name, d) => {
+      const v = cs.getPropertyValue(name).trim();
+      return (parseFloat(v) || d) * (v.endsWith("rem") ? rem : 1);
+    };
+    S.CH_W = px("--chan-w", 232);
+    S.ROW_H = px("--row-h", 64);
+    S.PX = tvMode ? rem * 0.375 : window.innerWidth < 560 ? 4 : 5;
   }
 
   // ------------------------------------------------------------ data
@@ -253,7 +260,8 @@
         cells = `<div class="prog none" style="left:0;width:${totalW - 3}px" data-ch="${esc(c.id)}" data-x="0" data-w="${totalW - 3}">
           <div class="in"><span class="t">No schedule · ${esc(label)}</span><span class="m">${esc(quality(c.streams[0]))} · ${c.streams.length} stream${c.streams.length > 1 ? "s" : ""}${esc(live)}</span></div></div>`;
       }
-      html += `<div class="row${S.sel === c.id ? " sel" : ""}" style="top:${i * S.ROW_H}px;width:${S.CH_W + totalW}px">${chanCell(c)}<div class="progs" style="width:${totalW}px">${cells}</div></div>`;
+      const whole = S.sel === c.id && !(S.selProg && S.selProg.ch === c.id) ? " whole" : "";
+      html += `<div class="row${S.sel === c.id ? " sel" : ""}${whole}" style="top:${i * S.ROW_H}px;width:${S.CH_W + totalW}px">${chanCell(c)}<div class="progs" style="width:${totalW}px">${cells}</div></div>`;
     }
     els.rows.innerHTML = html;
     S.rendered = [...els.rows.querySelectorAll(".prog")].map((el) => ({ el, x: +el.dataset.x, w: +el.dataset.w }));
@@ -517,7 +525,7 @@
   }
 
   function playPrompt(c) {
-    deckState("", `Press play to listen to <b>${esc(c.name)}</b>.`);
+    deckState("", `Press ${tvMode ? "OK" : "play"} to listen to <b>${esc(c.name)}</b>.`);
     renderDeck();
   }
 
@@ -582,7 +590,7 @@
     session() { return this.ctx && this.ctx.getCurrentSession(); },
 
     init() {
-      if (!S.proxy || !/Chrome|CriOS|Edg/.test(navigator.userAgent)) return;
+      if (tvMode || !S.proxy || !/Chrome|CriOS|Edg/.test(navigator.userAgent)) return;
       window.__onGCastApiAvailable = (ok) => { if (ok) this.ready(); };
       const sc = document.createElement("script");
       sc.src = "https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1";
@@ -807,6 +815,7 @@
   });
 
   els.guide.addEventListener("keydown", (e) => {
+    if (tvMode) return; // TV.key handles the remote
     if (e.target.closest(".chan button") && (e.key === "Enter" || e.key === " ")) return; // native button
     const map = { ArrowDown: 1, ArrowUp: -1 };
     if (map[e.key]) {
@@ -850,6 +859,211 @@
     placeNowLine();
   }
 
+  // ------------------------------------------------------------ TV mode
+  // For a TV and its remote (html.tv, set in index.html for ?tv=1 or a TV
+  // browser). In the guide, Up/Down change station, Left/Right walk the
+  // schedule and OK tunes; OK on the station playing fills the screen with
+  // it, and Back comes out again. The rest of the page is reached by moving
+  // off the guide's top edge: focus goes to the nearest control that way.
+  // An app wrapping the page calls window.signalBack() for its Back button;
+  // false means the page had nothing to go back from, so leave the app.
+  const FOCUSABLE = 'button:not(:disabled), select, input:not([type="range"]), a[href]:not(.brand)';
+  const BACK = new Set(["Escape", "GoBack", "BrowserBack", "Backspace"]);
+
+  const TV = {
+    cur: 0, // the time the guide cursor is on, in minutes
+    digits: "", digitTimer: 0,
+
+    start() {
+      window.signalBack = () => this.back();
+      window.addEventListener("keydown", (e) => this.key(e), true);
+      els.jumpNow.addEventListener("click", () => { this.cur = nowMin(); });
+      if (!S.sel) els.artist.textContent = "Pick a station with ▲ ▼ and press OK.";
+      this.cur = nowMin();
+      this.focusGuide();
+    },
+
+    isFull() { return document.documentElement.classList.contains("full"); },
+    full(on) {
+      document.documentElement.classList.toggle("full", on);
+      if (on) document.activeElement.blur();
+      else this.focusGuide();
+    },
+
+    winStart() { return S.T0 + els.guide.scrollLeft / S.PX; },
+    winEnd() { return this.winStart() + (els.guide.clientWidth - S.CH_W) / S.PX; },
+
+    focusGuide() {
+      els.guide.focus({ preventScroll: true });
+      if (!S.list.length) return;
+      const c = S.list.find((x) => x.id === S.sel) ||
+        S.list[Math.min(S.list.length - 1, Math.floor(els.guide.scrollTop / S.ROW_H))];
+      this.land(c);
+    },
+
+    // Put the cursor on a station, on the programme at this.cur (kept within
+    // the time in view), or on the whole row when nothing is scheduled then.
+    land(c) {
+      this.cur = Math.min(Math.max(this.cur, this.winStart()), this.winEnd() - 1);
+      const i = c.progs.findIndex((p) => p[0] <= this.cur && p[1] > this.cur);
+      S.selProg = i >= 0 ? { ch: c.id, i } : null;
+      scrollToStation(c.id);
+      select(c.id, { keepProg: true });
+    },
+
+    // After a search or filter the selected station may be out of the list.
+    listed() { return S.list.some((c) => c.id === S.sel); },
+
+    move(dy) {
+      if (!this.listed()) { this.focusGuide(); return; }
+      const i = S.list.findIndex((c) => c.id === S.sel) + dy;
+      if (i < 0) this.leave("up");
+      else if (i < S.list.length) this.land(S.list[i]);
+    },
+
+    step(dx) {
+      if (!this.listed()) { this.focusGuide(); return; }
+      const c = S.byId.get(S.sel);
+      const g = els.guide;
+      const at = S.selProg && S.selProg.ch === c.id ? S.selProg.i : -1;
+      const j = at >= 0 ? at + dx
+        : dx > 0 ? c.progs.findIndex((p) => p[0] >= this.cur)
+        : c.progs.findLastIndex((p) => p[1] <= this.cur);
+      const p = c.progs[j];
+      if (!p) {
+        // Nothing scheduled that way: move through time half an hour at a time.
+        g.scrollLeft += dx * 30 * S.PX;
+        this.cur += dx * 30;
+        this.land(c);
+        return;
+      }
+      const view = g.clientWidth - S.CH_W, pad = 15 * S.PX;
+      const x0 = xOf(p[0]), x1 = xOf(p[1]);
+      if (x0 < g.scrollLeft) g.scrollLeft = x0 - pad;
+      else if (x1 > g.scrollLeft + view) g.scrollLeft = Math.min(x0 - pad, x1 - view + pad);
+      this.cur = Math.max(p[0], this.winStart());
+      S.selProg = { ch: c.id, i: j };
+      select(c.id, { keepProg: true });
+    },
+
+    ok() {
+      if (!this.listed()) { this.focusGuide(); return; }
+      const c = S.byId.get(S.sel);
+      if (S.playing && S.playing.ch === c.id) this.full(true);
+      else tune(c.id, 0, { keepProg: true });
+    },
+
+    surf(d) {
+      surf(d);
+      if (!this.isFull() && S.sel) this.land(S.byId.get(S.sel));
+    },
+
+    back() {
+      if (this.isFull()) { this.full(false); return true; }
+      const a = document.activeElement;
+      if (a && a !== els.guide && a !== document.body) { this.focusGuide(); return true; }
+      // Wandered off through the guide: back to what's playing, now.
+      if (S.playing && S.sel !== S.playing.ch && S.list.some((c) => c.id === S.playing.ch)) {
+        this.cur = nowMin();
+        scrollToNow(false);
+        this.land(S.byId.get(S.playing.ch));
+        return true;
+      }
+      return false;
+    },
+
+    // Number keys: type a station number, it's selected after a short pause.
+    digit(d) {
+      this.digits = (this.digits + d).slice(-4);
+      toast(`No. ${this.digits}`);
+      clearTimeout(this.digitTimer);
+      this.digitTimer = setTimeout(() => {
+        const n = +this.digits;
+        this.digits = "";
+        const c = S.list.find((x) => x.num === n);
+        if (!c) { toast(`No. ${n} isn't in this list`); return; }
+        if (this.isFull()) tune(c.id);
+        else { els.guide.focus({ preventScroll: true }); this.land(c); }
+      }, 1300);
+    },
+
+    leave(dir) {
+      this.go(dir, els.rows.querySelector(".prog.sel") || els.rows.querySelector(".row.sel .chan") || els.guide);
+    },
+
+    // Focus the nearest control from `from` in direction `dir`, the guide
+    // counting as one. Controls scrolled out of view in a scrolling box (the
+    // filters, the genres, the station panel) count only from inside it.
+    go(dir, from) {
+      const r0 = from.getBoundingClientRect();
+      const horiz = dir === "left" || dir === "right";
+      const box = (el) => el.closest(".controls, .cats, .now, .deck");
+      const inView = (el, r) => {
+        const b = box(el), c = b ? b.getBoundingClientRect() : { left: 0, top: 0, right: innerWidth, bottom: innerHeight };
+        return r.left >= c.left - 2 && r.right <= c.right + 2 && r.top >= c.top - 2 && r.bottom <= c.bottom + 2;
+      };
+      const cands = [];
+      for (const el of [...document.querySelectorAll(FOCUSABLE), els.guide]) {
+        if (el === from || el.closest("#rows")) continue;
+        const r = el.getBoundingClientRect();
+        if (!r.width || !r.height) continue;
+        if (el !== els.guide && !inView(el, r) && !(box(el) && box(el) === box(from))) continue;
+        const gap = { up: r0.top - r.bottom, down: r.top - r0.bottom, left: r0.left - r.right, right: r.left - r0.right }[dir];
+        if (gap < -4) continue;
+        const cross = horiz ? Math.max(0, r.top - r0.bottom, r0.top - r.bottom) : Math.max(0, r.left - r0.right, r0.left - r.right);
+        const off = horiz ? Math.abs(r.top + r.bottom - r0.top - r0.bottom) : Math.abs(r.left + r.right - r0.left - r0.right);
+        cands.push({ el, gap: Math.max(0, gap), score: horiz ? Math.max(0, gap) + cross * 2 + off * 0.05 : cross * 2 + off * 0.05 });
+      }
+      // Up and down go to the nearest row of controls first, then the
+      // closest control in it, so the panel's lone star isn't skipped.
+      const nearest = Math.min(...cands.map((c) => c.gap));
+      const row = horiz ? cands : cands.filter((c) => c.gap <= nearest + Math.max(16, r0.height));
+      const best = row.sort((a, b) => a.score - b.score)[0]?.el;
+      if (!best) return;
+      if (best === els.guide) { this.focusGuide(); return; }
+      best.focus({ preventScroll: true });
+      best.scrollIntoView({ block: "nearest", inline: "nearest" });
+    },
+
+    key(e) {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const k = e.key, a = document.activeElement;
+      const typing = a && a.tagName === "INPUT";
+      const done = () => { e.preventDefault(); e.stopPropagation(); };
+      const dir = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right" }[k];
+      const on = () => els.deck.classList.contains("playing") || els.deck.classList.contains("loading");
+
+      if (BACK.has(k) && !(typing && k === "Backspace")) { if (this.back()) done(); return; }
+      if (k === "ChannelUp" || k === "MediaTrackNext") { done(); this.surf(1); return; }
+      if (k === "ChannelDown" || k === "MediaTrackPrevious") { done(); this.surf(-1); return; }
+      if (k === "MediaPlayPause" || (k === "MediaPlay" && !on()) || ((k === "MediaPause" || k === "MediaStop") && on())) { done(); togglePlay(); return; }
+      if (/^[0-9]$/.test(k) && !typing) { done(); this.digit(k); return; }
+      if (k === "Guide") { done(); if (this.isFull()) this.full(false); else this.focusGuide(); return; }
+
+      if (this.isFull()) {
+        // Like a radio's tuning buttons: up is the next station.
+        if (k === "ArrowUp") { done(); this.surf(1); }
+        else if (k === "ArrowDown") { done(); this.surf(-1); }
+        else if (k === "Enter" || k === " ") { done(); togglePlay(); }
+        else if (dir) done();
+        return;
+      }
+      if (!a || a === els.guide || a === document.body) {
+        if (dir === "up" || dir === "down") { done(); this.move(dir === "up" ? -1 : 1); }
+        else if (dir) { done(); this.step(dir === "left" ? -1 : 1); }
+        else if (k === "Enter") { done(); this.ok(); }
+        return;
+      }
+      // On a control: the arrows move between controls.
+      // In the search box Left and Right move the caret until it reaches an end.
+      if (typing && dir === "left" && a.selectionEnd > 0) return;
+      if (typing && dir === "right" && a.selectionStart < a.value.length) return;
+      if (typing && k === "Enter") { done(); this.focusGuide(); return; }
+      if (a.tagName === "SELECT" && k === "Enter") { done(); try { a.showPicker(); } catch { /* opens itself */ } return; }
+      if (dir) { done(); this.go(dir, a); }
+    },
+  };
+
   // ------------------------------------------------------------ boot
   async function boot() {
     readLayout();
@@ -882,6 +1096,7 @@
       showPanel();
       playPrompt(S.byId.get(last));
     }
+    if (tvMode) TV.start();
     // Refresh live/past styling, the progress bar and the deck every 30 seconds.
     setInterval(() => { render(true); if (S.sel) showPanel(); renderDeck(); }, 30000);
     // Pick up new data (the server rebuilds it hourly) without a reload.
