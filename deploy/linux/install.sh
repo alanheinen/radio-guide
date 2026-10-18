@@ -39,7 +39,7 @@ PYTHON=$(command -v python3 || true)
 rm -rf "$PREFIX.new"
 mkdir -p "$PREFIX.new/web"
 cp -R "$SRC/scripts" "$PREFIX.new/"
-cp "$SRC/web/index.html" "$SRC/web/app.css" "$SRC/web/app.js" "$PREFIX.new/web/"
+cp "$SRC/web/index.html" "$SRC/web/app.css" "$SRC/web/app.js" "$SRC/web/receiver.html" "$SRC/web/receiver.js" "$PREFIX.new/web/"
 rm -rf "$PREFIX.new/scripts/__pycache__"
 rm -rf "$PREFIX"
 mv "$PREFIX.new" "$PREFIX"

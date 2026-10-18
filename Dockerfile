@@ -11,7 +11,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 COPY scripts/ scripts/
-COPY web/index.html web/app.css web/app.js web/
+COPY web/index.html web/app.css web/app.js web/receiver.html web/receiver.js web/
 # Owned by the app user, so a named volume mounted here starts out writable.
 RUN install -d -o 1000 -g 1000 /data
 

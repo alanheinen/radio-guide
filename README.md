@@ -148,6 +148,7 @@ python3 scripts/serve.py                    # http://127.0.0.1:8080
 | `--data` | `web/data` | Where the station data and feed cache are kept. |
 | `--refresh` | `0` (never) | Rebuild every N hours. Every install method uses `1`. |
 | `--log` | console | Append output to a file, rotated at about 5 MB. |
+| `CAST_APP_ID` | none | Your own [Cast receiver](#your-own-cast-receiver)'s application ID. Unset, casting uses Google's Default Media Receiver. |
 
 ### Countries
 
@@ -205,6 +206,24 @@ webOS) get it without asking.
 An app that wraps the page in a web view can call `window.signalBack()` from
 its Back button: it returns `false` when the page has nothing to go back
 from, which is the app's cue to exit.
+
+### Your own Cast receiver
+
+By default, casting hands the TV or speaker a stream URL for Google's Default
+Media Receiver. With your own receiver, the speaker runs this server's
+`receiver.html` instead and gets just the station id. It picks the stream and
+falls back through the alternatives, next/previous change station (the phone's
+controls, a Nest Hub's buttons, "Hey Google, next"), the title shows the song playing, and a Nest Hub
+shows your favorites to tap.
+
+1. In the [Google Cast SDK Developer Console](https://cast.google.com/publish)
+   (a one-time US$5 registration), add a **Custom Receiver** with the URL
+   `https://<this server>/receiver.html`, and note its application ID.
+2. Until you publish it, it only runs on devices you register there by serial
+   number (the device needs a restart afterwards).
+3. Set `CAST_APP_ID` to the application ID and restart the server.
+
+The speaker must be able to reach this server over HTTPS by name.
 
 ## How it works
 

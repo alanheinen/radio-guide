@@ -376,7 +376,7 @@ class Handler(SimpleHTTPRequestHandler):
         path, _, query = self.path.partition("?")
         try:
             if path == "/api/health":
-                return self.send_json({"proxy": True, "nowplaying": True})
+                return self.send_json({"proxy": True, "nowplaying": True, "cast": os.environ.get("CAST_APP_ID", "")})
             if path == "/healthz":
                 ok = (DATA / "stations.json").exists()
                 return self.send_json({"ready": ok}) if ok else self.send_error(503, "station data not built yet")

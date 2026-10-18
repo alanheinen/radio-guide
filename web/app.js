@@ -581,10 +581,13 @@
   });
 
   // ------------------------------------------------------------ cast
-  // Google Cast (Chromecast, Nest speakers and displays, Google TV) through
-  // the Default Media Receiver. The receiver page is HTTPS, so a plain-HTTP
-  // stream goes through this server's proxy, which the speaker must be able
-  // to resolve and reach; so does HLS, for CORS.
+  // Google Cast (Chromecast, Nest speakers and displays, Google TV). With
+  // CAST_APP_ID set on the server, the speaker runs this server's own
+  // receiver (receiver.html), which is sent just the station id and does the
+  // rest: picks the stream, surfs with next/previous, shows the song playing.
+  // Otherwise the Default Media Receiver gets a stream URL. Its page is HTTPS,
+  // so a plain-HTTP stream goes through this server's proxy, which the
+  // speaker must be able to resolve and reach; so does HLS, for CORS.
   const Cast = {
     ctx: null,
     session() { return this.ctx && this.ctx.getCurrentSession(); },
@@ -601,7 +604,7 @@
     ready() {
       const cf = cast.framework;
       this.ctx = cf.CastContext.getInstance();
-      this.ctx.setOptions({ receiverApplicationId: chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID, autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED });
+      this.ctx.setOptions({ receiverApplicationId: S.castApp || chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID, autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED });
       // The button stays visible with no devices found: a page can't make
       // Chrome rescan, but opening its Cast picker does, so a click is the
       // "search again".
@@ -663,6 +666,7 @@
       renderDeck();
       this.showCasting(c, true);
       pollNow(true);
+      if (S.castApp) return this.loadStation(c, idx);
       const { url, type, via } = this.source(s, opts.viaProxy);
       const info = new chrome.cast.media.MediaInfo(url, type);
       info.streamType = chrome.cast.media.StreamType.LIVE;
@@ -685,6 +689,29 @@
         S.bad.add(s.url);
         if (!opts.single && idx + 1 < c.streams.length) return this.load(c, idx + 1, { ...opts, viaProxy: false });
         this.fail(c, `${this.device()} couldn't play it${err && err.code ? ` (${err.code})` : ""}`);
+      }
+    },
+
+    // Our receiver: the station id, the list to surf (when it fits in a cast
+    // message) and favorites for the Hub's carousel.
+    async loadStation(c, idx) {
+      const my = token;
+      const info = new chrome.cast.media.MediaInfo(c.id, "audio/mpeg");
+      info.streamType = chrome.cast.media.StreamType.LIVE;
+      info.customData = { stream: idx };
+      const md = new chrome.cast.media.MusicTrackMediaMetadata();
+      md.title = c.name;
+      md.artist = c.name;
+      if (c.logo) md.images = [new chrome.cast.Image(c.logo)];
+      info.metadata = md;
+      const req = new chrome.cast.media.LoadRequest(info);
+      req.autoplay = true;
+      req.customData = { list: S.list.length <= 400 ? S.list.map((x) => x.id) : null, favs: [...S.favs].slice(0, 30) };
+      try {
+        await this.session().loadMedia(req);
+        if (my === token) this.showCasting(c);
+      } catch (err) {
+        if (my === token) this.fail(c, `${this.device()} couldn't play it${err && err.code ? ` (${err.code})` : ""}`);
       }
     },
 
@@ -1074,6 +1101,7 @@
       const j = h.ok ? await h.json() : {};
       S.proxy = j.proxy === true;
       S.nowplaying = j.nowplaying === true;
+      S.castApp = typeof j.cast === "string" ? j.cast : "";
     } catch { S.proxy = S.nowplaying = false; }
     Cast.init();
     try {
